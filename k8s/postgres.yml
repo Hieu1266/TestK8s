@@ -105,7 +105,8 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - port: 5432
+    - port: 5433
       targetPort: 5432
+      nodePort: 30432
   selector:
     app: postgres
