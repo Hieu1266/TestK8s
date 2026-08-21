@@ -1,5 +1,5 @@
 # ==========================================
-# 0. RBAC PERMISSIONS (Cấp quyền cho config-service)
+# 0. RBAC PERMISSIONS
 # ==========================================
 apiVersion: v1
 kind: ServiceAccount

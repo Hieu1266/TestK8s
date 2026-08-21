@@ -3,19 +3,50 @@ kind: ConfigMap
 metadata:
   name: postgres-init-scripts
 data:
-  init-multi-db.sh: |
-    #!/bin/bash
-    set -e
-    for db in user_db course_db quiz_exam_db learning_progress_db config_db; do
-      psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" -c "CREATE DATABASE $db"
-    done
+  01-init.sql: |
+    CREATE DATABASE user_db;
+    CREATE DATABASE course_db;
+    CREATE DATABASE quiz_exam_db;
+    CREATE DATABASE learning_progress_db;
+    CREATE DATABASE config_db;
+
+    \c config_db;
+
+    CREATE TABLE IF NOT EXISTS service_config (
+        id SERIAL PRIMARY KEY,
+        service_name VARCHAR(255) UNIQUE NOT NULL,
+        config_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    INSERT INTO service_config (service_name, config_json) VALUES
+    ('user_service', '{"PORT": "8000", "DEBUG": "True", "FRONTEND_HOST": "http://localhost:3000", "BACKEND_USER_URL": "http://user-service:8000", "USERS_DB_URL": "postgresql://postgres:B2305573@postgres:5432/user_db", "BACKEND_CORS_ORIGINS": "http://localhost:3000,http://127.0.0.1:8000", "CLIENT_ID": "373059704505-idbcgjtvf3pl94krkoeh67f4ars8fmte.apps.googleusercontent.com", "CLIENT_SECRET_KEY": "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", "SECRET_KEY": "24b0a8c7ad925a3e24e99ce36b3c53b2b33b542098611cb14fc02370c44da390", "ALGORITHM": "HS256", "ACCESS_TOKEN_EXPIRE_DAYS": "1"}'::jsonb),
+    ('course_service', '{"PORT": "8001", "DEBUG": "True", "FRONTEND_HOST": "http://localhost:3000", "BACKEND_COURSE_URL": "http://course-service:8001", "COURSES_DB_URL": "postgresql://postgres:B2305573@postgres:5432/course_db", "STORAGE_API_URL": "http://course-service:8001", "BACKEND_CORS_ORIGINS": "http://localhost:3000,http://127.0.0.1:8001", "SECRET_KEY": "24b0a8c7ad925a3e24e99ce36b3c53b2b33b542098611cb14fc02370c44da390"}'::jsonb),
+    ('quiz_exam_service', '{"PORT": "8002", "DEBUG": "True", "FRONTEND_HOST": "http://localhost:3000", "BACKEND_QUIZ_EXAM_URL": "http://quiz-exam-service:8002", "QUIZS_DB_URL": "postgresql://postgres:B2305573@postgres:5432/quiz_exam_db", "BACKEND_CORS_ORIGINS": "http://localhost:3000,http://127.0.0.1:8002", "SECRET_KEY": "24b0a8c7ad925a3e24e99ce36b3c53b2b33b542098611cb14fc02370c44da390"}'::jsonb),
+    ('learning_progress_service', '{"PORT": "8003", "DEBUG": "True", "FRONTEND_HOST": "http://localhost:3000", "BACKEND_LEARNING_PROGRESS_URL": "http://learning-progress-service:8003", "LEARNING_PROGRESS_DB_URL": "postgresql://postgres:B2305573@postgres:5432/learning_progress_db", "BACKEND_CORS_ORIGINS": "http://localhost:3000,http://127.0.0.1:8003", "SECRET_KEY": "24b0a8c7ad925a3e24e99ce36b3c53b2b33b542098611cb14fc02370c44da390"}'::jsonb),
+    ('frontend', '{"NEXT_PUBLIC_FRONTEND": "http://localhost:3000", "NEXT_PUBLIC_MEDIA_URL": "http://localhost:8081", "NEXT_PUBLIC_NGINX_URL": "http://localhost:8081", "NEXT_PUBLIC_TEST_MODE": "true", "NEXT_PUBLIC_USER_BACKEND_URL": "http://localhost:8000", "NEXT_PUBLIC_COURSE_BACKEND_URL": "http://localhost:8001", "NEXT_PUBLIC_EXAM_BACKEND_URL": "http://localhost:8002", "NEXT_PUBLIC_PROGRESS_BACKEND_URL": "http://localhost:8003", "NEXT_PUBLIC_GOOGLE_CLIENT_ID": "3072792222222620080-bdl4hqlso2o5iav4o91eqtod9ll6d4fr.apps.googleusercontent.com"}'::jsonb)
+    ON CONFLICT (service_name) DO NOTHING;
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /run/desktop/mnt/host/d/postgres-k8s-data
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgres-pvc
 spec:
-  accessModes: ["ReadWriteOnce"]
+  accessModes:
+    - ReadWriteOnce
   resources:
     requests:
       storage: 5Gi
@@ -66,15 +97,15 @@ spec:
       - name: init-scripts
         configMap:
           name: postgres-init-scripts
-          defaultMode: 0755
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: postgres
 spec:
-  clusterIP: None
+  type: LoadBalancer
   ports:
-  - port: 5432
+    - port: 5432
+      targetPort: 5432
   selector:
     app: postgres
