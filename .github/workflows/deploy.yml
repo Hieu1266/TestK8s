@@ -12,21 +12,30 @@ on:
 
 env:
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
 jobs:
+
   # ==========================================
-  # JOB 1: Build & Push 4 Backend Services
+  # JOB 1: Build & Push Backend Services
   # ==========================================
   build-backend:
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        service:
-          - course_service
-          - learning_progress_service
-          - quiz_exam_service
-          - user_service
+        include:
+          - service: course_service
+            image: course-service
+
+          - service: learning_progress_service
+            image: learning-progress-service
+
+          - service: quiz_exam_service
+            image: quiz-exam-service
+
+          - service: user_service
+            image: user-service
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -34,8 +43,8 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ env.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -46,16 +55,19 @@ jobs:
           context: ./backend/service/${{ matrix.service }}
           file: ./backend/service/${{ matrix.service }}/Dockerfile
           push: true
-          tags: ${{ env.DOCKER_USERNAME }}/${{ matrix.service }}:latest
-          # THÊM SCOPE VÀO 2 DÒNG NÀY:
+          tags: |
+            ${{ env.DOCKER_USERNAME }}/${{ matrix.image }}:latest
+            ${{ env.DOCKER_USERNAME }}/${{ matrix.image }}:${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
+
   # ==========================================
-  # JOB 2: Build & Push Next.js Frontend
+  # JOB 2: Build & Push Frontend
   # ==========================================
   build-frontend:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -63,8 +75,8 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ env.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -75,7 +87,9 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
-          tags: ${{ env.DOCKER_USERNAME }}/frontend:latest
+          tags: |
+            ${{ env.DOCKER_USERNAME }}/frontend:latest
+            ${{ env.DOCKER_USERNAME }}/frontend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
@@ -86,25 +100,59 @@ jobs:
             NEXT_PUBLIC_EXAM_BACKEND_URL=${{ secrets.NEXT_PUBLIC_EXAM_BACKEND_URL }}
             NEXT_PUBLIC_PROGRESS_BACKEND_URL=${{ secrets.NEXT_PUBLIC_PROGRESS_BACKEND_URL }}
 
+
   # ==========================================
-  # JOB 3: Deploy lên Kubernetes Cluster (Local)
+  # JOB 3: Deploy lên Kubernetes Local
   # ==========================================
   deploy-k8s:
-    needs: [build-backend, build-frontend]
+    needs:
+      - build-backend
+      - build-frontend
+
     runs-on: self-hosted
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Deploy Manifests
+      - name: Check Kubernetes
+        shell: powershell
+        run: |
+          kubectl version --client
+          kubectl get nodes
+          kubectl get pods
+
+      - name: Apply Kubernetes Manifests
         shell: powershell
         run: |
           kubectl apply -f k8s/backend-secrets.yml
           kubectl apply -f k8s/backend.yml
           kubectl apply -f k8s/frontend.yml
 
+      - name: Restart Backend Services
+        shell: powershell
+        run: |
           kubectl rollout restart deployment/course-service
           kubectl rollout restart deployment/learning-progress-service
           kubectl rollout restart deployment/quiz-exam-service
           kubectl rollout restart deployment/user-service
+
+      - name: Restart Frontend
+        shell: powershell
+        run: |
           kubectl rollout restart deployment/frontend
+
+      - name: Wait for Deployments
+        shell: powershell
+        run: |
+          kubectl rollout status deployment/course-service
+          kubectl rollout status deployment/learning-progress-service
+          kubectl rollout status deployment/quiz-exam-service
+          kubectl rollout status deployment/user-service
+          kubectl rollout status deployment/frontend
+
+      - name: Check Final Status
+        shell: powershell
+        run: |
+          kubectl get pods
+          kubectl get svc

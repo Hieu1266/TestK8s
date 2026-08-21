@@ -18,17 +18,18 @@ import {
   Trash2,
   Circle,
   Key,
+  CheckCircle2,
 } from "lucide-react";
 
 // ============================================
-// CẤU HÌNH KẾT NỐI TỚI config_service
+// CẤU HÌNH KẾT NỐI TỚI config_service (CHUẨN K8S REWRITES)
 // ============================================
 const CONFIG_API_BASE =
-  process.env.NEXT_PUBLIC_CONFIG_SERVICE_URL || "http://localhost:8005";
+  process.env.NEXT_PUBLIC_CONFIG_SERVICE_URL || "/api/config-service";
 
 const CONFIG_ADMIN_KEY =
   process.env.NEXT_PUBLIC_CONFIG_ADMIN_KEY || "change-me-please";
-  
+
 const BACKEND_SERVICES = [
   { id: "user_service", label: "user_service" },
   { id: "course_service", label: "course_service" },
@@ -46,7 +47,7 @@ type ConfigMap = Record<string, string>;
 type ViewState = "HOME" | "FRONTEND" | "BACKEND";
 
 // ============================================
-// GỌI API
+// GỌI API CONFIG SERVICE
 // ============================================
 async function fetchServiceConfig(serviceName: string): Promise<ConfigMap> {
   const res = await fetch(`${CONFIG_API_BASE}/config/${serviceName}`, {
@@ -88,6 +89,7 @@ export default function ConfigPage() {
   const [configCache, setConfigCache] = useState<Record<string, ConfigMap>>({});
   const [loadingService, setLoadingService] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<ConfigMap>({});
@@ -169,10 +171,15 @@ export default function ConfigPage() {
     e.preventDefault();
     setIsSaving(true);
     setErrorMsg(null);
+    setSuccessMsg(null);
     try {
       const saved = await saveServiceConfig(currentServiceId, formData);
       setConfigCache((prev) => ({ ...prev, [currentServiceId]: saved }));
       setIsEditing(false);
+      setSuccessMsg(
+        `Cập nhật thành công! Kubernetes đang kích hoạt Rollout Restart cho pod "${currentServiceId}"...`
+      );
+      setTimeout(() => setSuccessMsg(null), 8000);
     } catch (e: any) {
       setErrorMsg(e.message || "Lưu thất bại.");
     } finally {
@@ -187,17 +194,17 @@ export default function ConfigPage() {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto mt-8">
       <HomeFileTile
         icon={<Monitor size={24} />}
-        filename=".env.local"
-        title="Frontend Configuration"
-        description="Biến môi trường Client-side (Next.js)."
+        filename="frontend-configmap"
+        title="Frontend ConfigMap"
+        description="Cấu hình biến môi trường Client-side trên Kubernetes."
         previewLines={["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_CONFIG_ADMIN_KEY"]}
         onOpen={() => setView("FRONTEND")}
       />
       <HomeFileTile
         icon={<Server size={24} />}
-        filename="services/*.env"
-        title="Backend Configuration"
-        description="Quản lý cấu hình 4 Microservices (User, Course, Progress, Quiz)."
+        filename="k8s-configmaps"
+        title="Backend ConfigMaps"
+        description="Quản lý Kubernetes ConfigMaps cho 4 Microservices."
         previewLines={["DATABASE_URL", "JWT_SECRET", "PORT"]}
         onOpen={() => setView("BACKEND")}
       />
@@ -215,7 +222,7 @@ export default function ConfigPage() {
       return (
         <div className="flex flex-col items-center justify-center gap-3 py-24 text-sm font-mono text-slate-400">
           <Loader2 size={24} className="animate-spin text-blue-500" />
-          <span>Đang tải cấu hình từ {serviceName}...</span>
+          <span>Đang tải ConfigMap của {serviceName}...</span>
         </div>
       );
     }
@@ -243,8 +250,8 @@ export default function ConfigPage() {
       return (
         <div className="flex flex-col items-center justify-center py-24 text-sm font-mono text-slate-500">
           <Key size={32} className="opacity-20 mb-3" />
-          <p>{"// Chưa có biến môi trường nào"}</p>
-          <p className="mt-1 opacity-70 font-sans">Nhấn "Chỉnh sửa" để thêm cấu hình mới</p>
+          <p>{"// ConfigMap hiện đang trống"}</p>
+          <p className="mt-1 opacity-70 font-sans">Nhấn "Chỉnh sửa" để thêm biến mới</p>
         </div>
       );
     }
@@ -260,10 +267,8 @@ export default function ConfigPage() {
               {i + 1}
             </div>
             <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 min-w-0">
-              {/* Đổi màu Key sang blue-300 sang trọng hơn */}
               <span className="shrink-0 text-blue-300 font-medium">{key}</span>
               <span className="hidden sm:inline shrink-0 text-slate-600">=</span>
-              {/* Đổi màu Value normal sang slate-300 sạch sẽ */}
               <span
                 className={`min-w-0 flex-1 truncate ${
                   isSecretField(key)
@@ -288,7 +293,7 @@ export default function ConfigPage() {
   // ==========================================
   const renderFrontend = () => (
     <EditorPanel
-      breadcrumb={["frontend", ".env.local"]}
+      breadcrumb={["k8s-cluster", "frontend-config"]}
       onBack={() => setView("HOME")}
       onEdit={openEditModal}
       onRefresh={() => loadConfig(FRONTEND_SERVICE_ID, true)}
@@ -302,7 +307,7 @@ export default function ConfigPage() {
   // ==========================================
   const renderBackend = () => (
     <EditorPanel
-      breadcrumb={["backend", "services", `${activeBackendTab}.env`]}
+      breadcrumb={["k8s-cluster", "configmaps", `${activeBackendTab}-config`]}
       onBack={() => setView("HOME")}
       onEdit={openEditModal}
       onRefresh={() => loadConfig(activeBackendTab, true)}
@@ -326,7 +331,7 @@ export default function ConfigPage() {
                     : "fill-slate-600 text-slate-600"
                 }
               />
-              {svc.label}.env
+              {svc.label}-config
             </button>
           ))}
         </div>
@@ -342,7 +347,6 @@ export default function ConfigPage() {
         <Navbar />
       </div>
 
-      {/* ===== BANNER GIỮ NGUYÊN TONE MÀU ===== */}
       <section className="relative overflow-hidden text-white pt-12 pb-32 px-6 bg-gradient-to-br from-[#0066FF] via-[#0052cc] to-[#003d99]">
         <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
           <div
@@ -362,7 +366,7 @@ export default function ConfigPage() {
               </Link>
               <span className="opacity-50">/</span>
               <span className="flex items-center gap-1.5 font-semibold text-white bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-md border border-white/5">
-                Cấu hình
+                Cấu hình K8s
               </span>
             </div>
 
@@ -376,9 +380,9 @@ export default function ConfigPage() {
             </div>
             <p className="max-w-2xl text-[15px] md:text-base text-white/90 font-medium leading-relaxed opacity-90">
               {view === "HOME" &&
-                "Chọn môi trường bạn muốn cấu hình bằng cách nhấp đúp vào ô tương ứng."}
-              {view === "FRONTEND" && "Đang xem cấu hình của Client-side (Trình duyệt)."}
-              {view === "BACKEND" && "Đang xem cấu hình của Server-side (Máy chủ)."}
+                "Chọn dịch vụ bạn muốn cập nhật Kubernetes ConfigMap."}
+              {view === "FRONTEND" && "Đang xem ConfigMap của Client-side."}
+              {view === "BACKEND" && "Đang xem ConfigMaps của Backend Services."}
             </p>
           </div>
         </div>
@@ -386,8 +390,13 @@ export default function ConfigPage() {
 
       <main className="px-4 sm:px-6 relative z-20 -mt-16">
         {errorMsg && (
-          <div className="max-w-4xl mx-auto mb-6 flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 text-sm font-semibold px-5 py-4 rounded-xl shadow-sm">
+          <div className="max-w-5xl mx-auto mb-6 flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 text-sm font-semibold px-5 py-4 rounded-xl shadow-sm">
             <AlertTriangle size={18} className="shrink-0 text-red-500" /> {errorMsg}
+          </div>
+        )}
+        {successMsg && (
+          <div className="max-w-5xl mx-auto mb-6 flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold px-5 py-4 rounded-xl shadow-sm animate-in fade-in">
+            <CheckCircle2 size={18} className="shrink-0 text-emerald-600" /> {successMsg}
           </div>
         )}
         {view === "HOME" && renderHome()}
@@ -396,7 +405,7 @@ export default function ConfigPage() {
       </main>
 
       {/* ==========================================
-          MODAL CHỈNH SỬA TONE ADMIN
+          MODAL CHỈNH SỬA
           ========================================== */}
       {isEditing && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
@@ -406,7 +415,6 @@ export default function ConfigPage() {
           ></div>
 
           <div className="relative w-full max-w-4xl bg-slate-900 rounded-2xl shadow-2xl shadow-slate-900/80 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200 border border-slate-800 overflow-hidden">
-            {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950">
               <h3 className="text-base font-mono font-semibold flex items-center gap-3 text-slate-200">
                 <span className="flex gap-1.5 opacity-80">
@@ -417,23 +425,22 @@ export default function ConfigPage() {
                 <span className="w-px h-4 bg-slate-700 mx-1"></span>
                 <Edit2 size={16} className="text-blue-400" />
                 {view === "FRONTEND"
-                  ? "frontend / .env.local"
-                  : `services / ${activeBackendTab}.env`}
+                  ? "frontend / configmap"
+                  : `k8s / ${activeBackendTab}-config`}
               </h3>
               <button
                 onClick={() => setIsEditing(false)}
-                className="p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-slate-700"
+                className="p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors focus:outline-none"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Body */}
             <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 space-y-4">
               {Object.keys(formData).length === 0 && (
                 <div className="text-center py-10">
                   <p className="text-sm font-mono text-slate-500">
-                    {"// Chưa có cấu hình nào. Hãy thêm ở bên dưới."}
+                    {"// ConfigMap trống. Hãy thêm biến ở bên dưới."}
                   </p>
                 </div>
               )}
@@ -450,14 +457,14 @@ export default function ConfigPage() {
                       type={isSecretField(key) ? "password" : "text"}
                       value={value}
                       onChange={(e) => handleFieldChange(key, e.target.value)}
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm font-mono text-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:bg-slate-900 outline-none transition-all placeholder:text-slate-600"
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm font-mono text-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all placeholder:text-slate-600"
                       placeholder="Nhập giá trị..."
                     />
                     <button
                       type="button"
                       onClick={() => handleRemoveField(key)}
                       title="Xoá biến này"
-                      className="p-2.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all opacity-100 sm:opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-red-500/30"
+                      className="p-2.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all opacity-100 sm:opacity-0 group-hover:opacity-100 focus:opacity-100 outline-none"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -465,12 +472,11 @@ export default function ConfigPage() {
                 </div>
               ))}
 
-              {/* Add New Field Box */}
               <div className="mt-8 pt-2">
                 <div className="bg-slate-950/50 border border-dashed border-slate-800 rounded-xl p-5 transition-colors focus-within:border-blue-500/50 focus-within:bg-slate-950">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-4">
                     <Plus size={16} className="text-blue-400" />
-                    Thêm biến môi trường mới
+                    Thêm biến môi trường mới vào ConfigMap
                   </label>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <input
@@ -493,7 +499,7 @@ export default function ConfigPage() {
                     <button
                       type="button"
                       onClick={handleAddField}
-                      className="flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-slate-600"
+                      className="flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors whitespace-nowrap focus:outline-none"
                     >
                       Thêm
                     </button>
@@ -507,22 +513,21 @@ export default function ConfigPage() {
               </div>
             </form>
 
-            {/* Footer */}
             <div className="px-6 py-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-950">
               <button
                 type="button"
                 onClick={() => setIsEditing(false)}
-                className="px-6 py-2.5 text-sm font-semibold text-slate-400 hover:bg-slate-800 hover:text-slate-200 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-slate-700"
+                className="px-6 py-2.5 text-sm font-semibold text-slate-400 hover:bg-slate-800 hover:text-slate-200 rounded-xl transition-colors focus:outline-none"
               >
                 Hủy bỏ
               </button>
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="flex items-center gap-2 px-8 py-2.5 text-sm font-bold text-white bg-[#0066FF] hover:bg-[#0052cc] rounded-xl transition-all shadow-lg shadow-blue-500/25 disabled:opacity-70 disabled:hover:bg-[#0066FF] focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
+                className="flex items-center gap-2 px-8 py-2.5 text-sm font-bold text-white bg-[#0066FF] hover:bg-[#0052cc] rounded-xl transition-all shadow-lg shadow-blue-500/25 disabled:opacity-70 focus:outline-none"
               >
                 {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                {isSaving ? "Đang lưu..." : "Lưu thay đổi"}
+                {isSaving ? "Đang cập nhật..." : "Lưu & Restart Pod"}
               </button>
             </div>
           </div>
@@ -533,7 +538,7 @@ export default function ConfigPage() {
 }
 
 // ==========================================
-// COMPONENT PHỤ TRỢ (Tối ưu màu cho Admin)
+// COMPONENT PHỤ TRỢ
 // ==========================================
 
 function HomeFileTile({
@@ -568,7 +573,6 @@ function HomeFileTile({
         </div>
       </div>
 
-      {/* Mini editor preview tone slate */}
       <div className="mx-7 mb-7 rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-inner">
         <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-950 border-b border-slate-800/80">
           <div className="flex gap-1.5 opacity-80">
@@ -618,12 +622,11 @@ function EditorPanel({
 }) {
   return (
     <div className="max-w-5xl mx-auto rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl shadow-blue-900/10 animate-in fade-in slide-in-from-bottom-4 duration-300">
-      {/* Toolbar tone slate-950 */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 sm:px-6 py-4 bg-slate-950 border-b border-slate-800">
         <div className="flex items-center gap-4 min-w-0">
           <button
             onClick={onBack}
-            className="p-2 shrink-0 text-slate-400 hover:bg-slate-800 hover:text-slate-200 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="p-2 shrink-0 text-slate-400 hover:bg-slate-800 hover:text-slate-200 rounded-xl transition-colors focus-visible:outline-none"
           >
             <ArrowLeft size={20} />
           </button>
@@ -648,13 +651,13 @@ function EditorPanel({
           <button
             onClick={onRefresh}
             title="Tải lại config mới nhất"
-            className="flex items-center justify-center p-2.5 text-slate-400 bg-slate-800/50 hover:bg-slate-800 hover:text-slate-200 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-600"
+            className="flex items-center justify-center p-2.5 text-slate-400 bg-slate-800/50 hover:bg-slate-800 hover:text-slate-200 rounded-xl transition-colors focus-visible:outline-none"
           >
             <RefreshCw size={18} />
           </button>
           <button
             onClick={onEdit}
-            className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-[#0066FF] hover:bg-[#0052cc] rounded-xl transition-all shadow-lg shadow-blue-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-[#0066FF] hover:bg-[#0052cc] rounded-xl transition-all shadow-lg shadow-blue-500/25 focus-visible:outline-none"
           >
             <Edit2 size={16} /> Chỉnh sửa
           </button>

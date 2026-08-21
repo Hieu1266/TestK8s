@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     DATABASE_URL: str
     ADMIN_KEY: str = "change-me-please"
+    K8S_NAMESPACE: str = "default"  # <-- Thêm dòng này để linh hoạt namespace
 
     class Config:
         env_file = ".env"

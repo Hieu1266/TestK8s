@@ -3,3 +3,4 @@ uvicorn[standard]
 sqlalchemy>=2.0
 psycopg2-binary
 pydantic
+kubernetes>=28.0.0

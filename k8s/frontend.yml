@@ -30,6 +30,8 @@ spec:
           value: "production"
         - name: PORT
           value: "3000"
+        - name: NEXT_PUBLIC_USER_BACKEND_URL
+          value: "http://user-service:8000"
         resources:
           requests:
             memory: "256Mi"
@@ -53,15 +55,15 @@ spec:
 # ==========================================
 # 2. FRONTEND SERVICE
 # ==========================================
+
 apiVersion: v1
 kind: Service
 metadata:
   name: frontend
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
-  - port: 3000
-    targetPort: 3000
-    nodePort: 30080
+    - port: 3000
+      targetPort: 3000
   selector:
     app: frontend

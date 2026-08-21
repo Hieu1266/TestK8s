@@ -44,11 +44,10 @@ kind: Service
 metadata:
   name: user-service
 spec:
-  type: NodePort
+  type: LoadBalancer      # ← phải có dòng này
   ports:
-  - port: 8000
-    targetPort: 8000
-    nodePort: 30000
+    - port: 8000
+      targetPort: 8000
   selector:
     app: user-service
 
@@ -99,11 +98,10 @@ kind: Service
 metadata:
   name: course-service
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
-  - port: 8001
-    targetPort: 8001
-    nodePort: 30001
+    - port: 8001        # giữ nguyên port hiện có của từng service, đừng đổi
+      targetPort: 8001
   selector:
     app: course-service
 
@@ -154,13 +152,13 @@ kind: Service
 metadata:
   name: quiz-exam-service
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
-  - port: 8002
-    targetPort: 8002
-    nodePort: 30002
+    - port: 8002        # giữ nguyên port hiện có của từng service, đừng đổi
+      targetPort: 8002
   selector:
     app: quiz-exam-service
+
 
 ---
 # ==========================================
@@ -204,16 +202,16 @@ spec:
             memory: "512Mi"
             cpu: "500m"
 ---
+
 apiVersion: v1
 kind: Service
 metadata:
   name: learning-progress-service
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
-  - port: 8003
-    targetPort: 8003
-    nodePort: 30003
+    - port: 8003
+      targetPort: 8003
   selector:
     app: learning-progress-service
 
@@ -262,10 +260,9 @@ kind: Service
 metadata:
   name: config-service
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
-  - port: 8004
-    targetPort: 8004
-    nodePort: 30004
+    - port: 8004
+      targetPort: 8004
   selector:
     app: config-service
