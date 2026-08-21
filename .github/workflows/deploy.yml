@@ -79,6 +79,11 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+            NEXT_PUBLIC_FRONTEND=${{ secrets.NEXT_PUBLIC_FRONTEND }}
+            NEXT_PUBLIC_USER_BACKEND_URL=${{ secrets.NEXT_PUBLIC_USER_BACKEND_URL }}
+            NEXT_PUBLIC_COURSE_BACKEND_URL=${{ secrets.NEXT_PUBLIC_COURSE_BACKEND_URL }}
+            NEXT_PUBLIC_EXAM_BACKEND_URL=${{ secrets.NEXT_PUBLIC_EXAM_BACKEND_URL }}
+            NEXT_PUBLIC_PROGRESS_BACKEND_URL=${{ secrets.NEXT_PUBLIC_PROGRESS_BACKEND_URL }}
 
   # ==========================================
   # JOB 3: Deploy lên Kubernetes Cluster (Local)

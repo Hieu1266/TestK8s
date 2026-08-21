@@ -1,0 +1,11 @@
+﻿{
+  "agentId": 2,
+  "agentName": "HIEU",
+  "poolId": 1,
+  "poolName": "Default",
+  "serverUrl": "https://pipelinesghubeus12.actions.githubusercontent.com/G2HGBoFcD4oli1CkiROIEitEEf7cQTrzmf6ALFELZO2MrcwBWt/",
+  "gitHubUrl": "https://github.com/Hieu1266/TestK8s",
+  "workFolder": "_work",
+  "useV2Flow": true,
+  "serverUrlV2": "https://broker.actions.githubusercontent.com/"
+}
