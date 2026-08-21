@@ -1,6 +1,6 @@
-import os
 import datetime
-from fastapi import APIRouter, Header, HTTPException, Depends
+import os
+from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import PlainTextResponse
 from kubernetes import client, config
 
@@ -11,34 +11,50 @@ from app.schemas.config import ConfigUpdate
 
 router = APIRouter(prefix="/config", tags=["config"])
 
-# ============================================
-# KHỞI TẠO KUBERNETES CLIENT
-# ============================================
-K8S_NAMESPACE = settings.K8S_NAMESPACE
-try:
-    config.load_incluster_config()
-except config.ConfigException:
+K8S_NAMESPACE = getattr(settings, "K8S_NAMESPACE", "default")
+
+
+# 1. Định nghĩa Middleware verify key trước khi dùng trong route
+def verify_admin_key(x_admin_key: str = Header(default="")):
+    admin_key = getattr(settings, "ADMIN_KEY", "")
+    if x_admin_key != admin_key:
+        raise HTTPException(status_code=401, detail="Sai admin key")
+
+
+# 2. Khởi tạo K8s API Clients an toàn
+def get_k8s_clients():
     try:
-        config.load_kube_config()  # Để dev local kết nối K8s test
+        config.load_incluster_config()
     except Exception:
-        pass
+        try:
+            config.load_kube_config()
+        except Exception as e:
+            print(f"[Warning] Không thể kết nối K8s API: {e}")
+            return None, None
+    return client.CoreV1Api(), client.AppsV1Api()
 
 
 def sync_to_k8s_and_restart(service_name: str, config_data: dict):
     """Cập nhật ConfigMap trên K8s và trigger Rollout Restart Pod"""
-    cm_name = f"{service_name}-config"
-    v1 = client.CoreV1Api()
-    apps_v1 = client.AppsV1Api()
+    k8s_name = service_name.replace("_", "-")
+    cm_name = f"{k8s_name}-config"
 
-    # 1. Cập nhật K8s ConfigMap (ép tất cả value về dạng string)
-    string_config = {k: str(v) for k, v in config_data.items()}
+    v1, apps_v1 = get_k8s_clients()
+    if not v1 or not apps_v1:
+        raise RuntimeError(
+            "Không thể kết nối đến Kubernetes Cluster từ trong Pod"
+        )
+
+    # Cập nhật K8s ConfigMap
+    string_config = {str(k): str(v) for k, v in config_data.items()}
+    cm_body = client.V1ConfigMap(
+        metadata=client.V1ObjectMeta(name=cm_name), data=string_config
+    )
     v1.patch_namespaced_config_map(
-        name=cm_name,
-        namespace=K8S_NAMESPACE,
-        body={"data": string_config}
+        name=cm_name, namespace=K8S_NAMESPACE, body=cm_body
     )
 
-    # 2. Trigger Rollout Restart Deployment
+    # Trigger Rollout Restart Deployment
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
     restart_patch = {
         "spec": {
@@ -52,15 +68,8 @@ def sync_to_k8s_and_restart(service_name: str, config_data: dict):
         }
     }
     apps_v1.patch_namespaced_deployment(
-        name=service_name,
-        namespace=K8S_NAMESPACE,
-        body=restart_patch
+        name=k8s_name, namespace=K8S_NAMESPACE, body=restart_patch
     )
-
-
-def verify_admin_key(x_admin_key: str = Header(default="")):
-    if x_admin_key != settings.ADMIN_KEY:
-        raise HTTPException(status_code=401, detail="Sai admin key")
 
 
 @router.get("")
@@ -79,7 +88,9 @@ def get_all_configs(db: SessionDep):
 def get_service_config(service_name: str, db: SessionDep):
     row = crud_config.get_config(db, service_name)
     if not row:
-        raise HTTPException(status_code=404, detail=f"Chưa có config cho '{service_name}'")
+        raise HTTPException(
+            status_code=404, detail=f"Chưa có config cho '{service_name}'"
+        )
     return {
         "service_name": row.service_name,
         "config": row.config_json,
@@ -91,34 +102,42 @@ def get_service_config(service_name: str, db: SessionDep):
 def export_service_config_as_env(service_name: str, db: SessionDep):
     row = crud_config.get_config(db, service_name)
     if not row:
-        raise HTTPException(status_code=404, detail=f"Chưa có config cho '{service_name}'")
+        raise HTTPException(
+            status_code=404, detail=f"Chưa có config cho '{service_name}'"
+        )
 
     lines = [f"{key}={value}" for key, value in row.config_json.items()]
     return "\n".join(lines) + "\n"
 
 
 @router.put("/{service_name}", dependencies=[Depends(verify_admin_key)])
-def update_service_config(service_name: str, payload: ConfigUpdate, db: SessionDep):
+def update_service_config(
+    service_name: str, payload: ConfigUpdate, db: SessionDep
+):
     if service_name not in ALLOWED_SERVICES:
         raise HTTPException(
             status_code=400,
-            detail=f"'{service_name}' không nằm trong danh sách service hợp lệ: {sorted(ALLOWED_SERVICES)}",
+            detail=f"'{service_name}' không nằm trong danh sách service hợp lệ",
         )
 
-    # 1. Lưu vào Database như cũ
+    # Lưu DB
     row = crud_config.upsert_config(db, service_name, payload.config)
 
-    # 2. Đẩy ConfigMap lên K8s & Trigger Restart Pod
+    if service_name == "frontend":
+        return {
+            "message": "Đã lưu config frontend vào DB",
+            "service_name": row.service_name,
+            "config": row.config_json,
+        }
+
+    # Đồng bộ K8s
     try:
         sync_to_k8s_and_restart(service_name, payload.config)
-    except client.exceptions.ApiException as e:
+    except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Đã lưu DB nhưng lỗi sync K8s ConfigMap ({e.status}): {e.reason}"
+            detail=f"Đã lưu DB nhưng lỗi sync K8s: {str(e)}",
         )
-    except Exception as e:
-        # Trường hợp chạy local không có cluster K8s
-        print(f"[Warning] Không thể kết nối K8s Cluster: {e}")
 
     return {
         "message": f"Cập nhật config cho '{service_name}' và kích hoạt K8s Rollout Restart thành công",

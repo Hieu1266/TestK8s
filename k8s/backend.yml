@@ -1,4 +1,37 @@
 # ==========================================
+# 0. RBAC PERMISSIONS (Cấp quyền cho config-service)
+# ==========================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: config-service-sa
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: config-service-role
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: config-service-rolebinding
+subjects:
+  - kind: ServiceAccount
+    name: config-service-sa
+roleRef:
+  kind: Role
+  name: config-service-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ==========================================
 # 1. USER SERVICE
 # ==========================================
 apiVersion: apps/v1
@@ -23,28 +56,19 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
-        env:
-        - name: PORT
-          value: "8000"
-        - name: DB_NAME
-          value: "user_db"
         envFrom:
         - secretRef:
             name: backend-secrets
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+        - configMapRef:
+            name: user-service-config
+            optional: true
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: user-service
 spec:
-  type: LoadBalancer      # ← phải có dòng này
+  type: LoadBalancer
   ports:
     - port: 8000
       targetPort: 8000
@@ -77,21 +101,12 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8001
-        env:
-        - name: PORT
-          value: "8001"
-        - name: DB_NAME
-          value: "course_db"
         envFrom:
         - secretRef:
             name: backend-secrets
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+        - configMapRef:
+            name: course-service-config
+            optional: true
 ---
 apiVersion: v1
 kind: Service
@@ -100,7 +115,7 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - port: 8001        # giữ nguyên port hiện có của từng service, đừng đổi
+    - port: 8001
       targetPort: 8001
   selector:
     app: course-service
@@ -131,21 +146,12 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8002
-        env:
-        - name: PORT
-          value: "8002"
-        - name: DB_NAME
-          value: "quiz_exam_db"
         envFrom:
         - secretRef:
             name: backend-secrets
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+        - configMapRef:
+            name: quiz-exam-service-config
+            optional: true
 ---
 apiVersion: v1
 kind: Service
@@ -154,11 +160,10 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - port: 8002        # giữ nguyên port hiện có của từng service, đừng đổi
+    - port: 8002
       targetPort: 8002
   selector:
     app: quiz-exam-service
-
 
 ---
 # ==========================================
@@ -186,23 +191,13 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8003
-        env:
-        - name: PORT
-          value: "8003"
-        - name: DB_NAME
-          value: "learning_progress_db"
         envFrom:
         - secretRef:
             name: backend-secrets
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+        - configMapRef:
+            name: learning-progress-service-config
+            optional: true
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
@@ -235,6 +230,7 @@ spec:
       labels:
         app: config-service
     spec:
+      serviceAccountName: config-service-sa
       containers:
       - name: config-service
         image: thanhieub2305573/config-service:latest
@@ -247,13 +243,6 @@ spec:
         envFrom:
         - secretRef:
             name: backend-secrets
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
 ---
 apiVersion: v1
 kind: Service

@@ -3,12 +3,15 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str
-    ADMIN_KEY: str = "change-me-please"
+    DATABASE_URL: str = (
+        "postgresql://postgres:postgres@postgres-service:5432/lumer_db"
+    )
+    ADMIN_KEY: str = "supersecretadmin-key"
     K8S_NAMESPACE: str = "default"  # <-- Thêm dòng này để linh hoạt namespace
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 
 settings = Settings()

@@ -1,6 +1,8 @@
 fastapi
-uvicorn[standard]
-sqlalchemy>=2.0
+uvicorn
+sqlalchemy
+sqlmodel
 psycopg2-binary
 pydantic
-kubernetes>=28.0.0
+pydantic-settings
+kubernetes
