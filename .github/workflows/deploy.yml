@@ -36,6 +36,9 @@ jobs:
           - service: user_service
             image: user-service
 
+          - service: config_service
+            image: config-service
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -136,6 +139,7 @@ jobs:
           kubectl rollout restart deployment/learning-progress-service
           kubectl rollout restart deployment/quiz-exam-service
           kubectl rollout restart deployment/user-service
+          kubectl rollout restart deployment/config-service
 
       - name: Restart Frontend
         shell: powershell
@@ -149,6 +153,7 @@ jobs:
           kubectl rollout status deployment/learning-progress-service
           kubectl rollout status deployment/quiz-exam-service
           kubectl rollout status deployment/user-service
+          kubectl rollout status deployment/config-service
           kubectl rollout status deployment/frontend
 
       - name: Check Final Status
