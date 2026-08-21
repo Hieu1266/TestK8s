@@ -1,0 +1,271 @@
+# ==========================================
+# 1. USER SERVICE
+# ==========================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  labels:
+    app: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+      - name: user-service
+        image: thanhieub2305573/user-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+        env:
+        - name: PORT
+          value: "8000"
+        - name: DB_NAME
+          value: "user_db"
+        envFrom:
+        - secretRef:
+            name: backend-secrets
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+spec:
+  type: NodePort
+  ports:
+  - port: 8000
+    targetPort: 8000
+    nodePort: 30000
+  selector:
+    app: user-service
+
+---
+# ==========================================
+# 2. COURSE SERVICE
+# ==========================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: course-service
+  labels:
+    app: course-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: course-service
+  template:
+    metadata:
+      labels:
+        app: course-service
+    spec:
+      containers:
+      - name: course-service
+        image: thanhieub2305573/course-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8001
+        env:
+        - name: PORT
+          value: "8001"
+        - name: DB_NAME
+          value: "course_db"
+        envFrom:
+        - secretRef:
+            name: backend-secrets
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: course-service
+spec:
+  type: NodePort
+  ports:
+  - port: 8001
+    targetPort: 8001
+    nodePort: 30001
+  selector:
+    app: course-service
+
+---
+# ==========================================
+# 3. QUIZ EXAM SERVICE
+# ==========================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quiz-exam-service
+  labels:
+    app: quiz-exam-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: quiz-exam-service
+  template:
+    metadata:
+      labels:
+        app: quiz-exam-service
+    spec:
+      containers:
+      - name: quiz-exam-service
+        image: thanhieub2305573/quiz-exam-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8002
+        env:
+        - name: PORT
+          value: "8002"
+        - name: DB_NAME
+          value: "quiz_exam_db"
+        envFrom:
+        - secretRef:
+            name: backend-secrets
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quiz-exam-service
+spec:
+  type: NodePort
+  ports:
+  - port: 8002
+    targetPort: 8002
+    nodePort: 30002
+  selector:
+    app: quiz-exam-service
+
+---
+# ==========================================
+# 4. LEARNING PROGRESS SERVICE
+# ==========================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: learning-progress-service
+  labels:
+    app: learning-progress-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: learning-progress-service
+  template:
+    metadata:
+      labels:
+        app: learning-progress-service
+    spec:
+      containers:
+      - name: learning-progress-service
+        image: thanhieub2305573/learning-progress-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8003
+        env:
+        - name: PORT
+          value: "8003"
+        - name: DB_NAME
+          value: "learning_progress_db"
+        envFrom:
+        - secretRef:
+            name: backend-secrets
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: learning-progress-service
+spec:
+  type: NodePort
+  ports:
+  - port: 8003
+    targetPort: 8003
+    nodePort: 30003
+  selector:
+    app: learning-progress-service
+
+---
+# ==========================================
+# 5. CONFIG SERVICE
+# ==========================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-service
+  labels:
+    app: config-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-service
+  template:
+    metadata:
+      labels:
+        app: config-service
+    spec:
+      containers:
+      - name: config-service
+        image: thanhieub2305573/config-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8004
+        env:
+        - name: PORT
+          value: "8004"
+        envFrom:
+        - secretRef:
+            name: backend-secrets
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-service
+spec:
+  type: NodePort
+  ports:
+  - port: 8004
+    targetPort: 8004
+    nodePort: 30004
+  selector:
+    app: config-service

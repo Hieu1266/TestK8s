@@ -1,0 +1,17 @@
+.env
+.env_backup
+documents/syllabus/*
+!documents/syllabus/.gitkeep
+documents/lesson_resources/*
+!documents/lesson_resources/.gitkeep
+static/uploads/curriculum/*
+!static/uploads/curriculum/.gitkeep
+*.pyc
+*.pyo
+*.pyd
+
+
+**/venv/
+**/.venv/
+**/env/
+**/ENV/

@@ -1,0 +1,104 @@
+name: Build and Deploy to K8s
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/service/**'
+      - 'frontend/**'
+      - 'k8s/**'
+      - '.github/workflows/**'
+
+env:
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+jobs:
+  # ==========================================
+  # JOB 1: Build & Push 4 Backend Services
+  # ==========================================
+  build-backend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - course_service
+          - learning_progress_service
+          - quiz_exam_service
+          - user_service
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend/service/${{ matrix.service }}
+          file: ./backend/service/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ env.DOCKER_USERNAME }}/${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ==========================================
+  # JOB 2: Build & Push Next.js Frontend
+  # ==========================================
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ env.DOCKER_USERNAME }}/frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+
+  # ==========================================
+  # JOB 3: Deploy lên Kubernetes Cluster (Local)
+  # ==========================================
+  deploy-k8s:
+    needs: [build-backend, build-frontend]
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy Manifests
+        shell: powershell
+        run: |
+          kubectl apply -f k8s/backend-secrets.yml
+          kubectl apply -f k8s/backend.yml
+          kubectl apply -f k8s/frontend.yml
+
+          kubectl rollout restart deployment/course-service
+          kubectl rollout restart deployment/learning-progress-service
+          kubectl rollout restart deployment/quiz-exam-service
+          kubectl rollout restart deployment/user-service
+          kubectl rollout restart deployment/frontend

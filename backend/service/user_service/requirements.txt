@@ -1,0 +1,15 @@
+fastapi==0.128.0
+uvicorn[standard]==0.34.0
+pydantic==2.12.5
+pydantic_core==2.41.5
+pydantic_settings==2.12.0
+email-validator==2.2.0
+PyJWT==2.13.0
+bcrypt==5.0.0
+SQLAlchemy==2.0.46
+sqlmodel==0.0.31
+psycopg2-binary==2.9.10
+python-jose==3.3.0
+google-auth==2.35.0
+requests==2.32.3
+email-validator

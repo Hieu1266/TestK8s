@@ -1,0 +1,68 @@
+    sudo nano /etc/nginx/sites-available/default
+
+
+    server {
+        listen 80;
+        server_name localhost;
+
+
+    client_max_body_size 50M;
+
+        location /static/uploads/curriculum/ {
+            alias /var/www/lumer_media/uploads/curriculum/;
+
+            autoindex on;
+            expires max;
+            add_header Cache-Control "public, max-age=31536000";
+            
+            add_header Access-Control-Allow-Origin *;
+            add_header Access-Control-Allow-Methods 'GET, OPTIONS';
+            add_header Access-Control-Allow-Headers 'DNT,X-Mx-ReqToken,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Cont>
+        }
+
+    location /course-media/ {
+        #  alias /var/www/lumer_media/uploads/course/images/;
+            alias /var/www/lumer_media/uploads/course/;
+            autoindex on;
+            expires max;
+            add_header Cache-Control "public, max-age=31536000";
+
+            add_header Access-Control-Allow-Origin *;
+            add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS';
+            add_header Access-Control-Allow-Headers 'DNT,X-Mx-ReqToken,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Cont>
+        }
+
+
+        location /uploads/video {
+            alias /var/www/lumer_media/uploads/course/video; 
+            sendfile on;
+            tcp_nopush on;
+            tcp_nodelay on;
+            autoindex on;
+
+            proxy_set_header Range $http_range;
+            proxy_set_header If-Range $http_if_range;
+            expires 7d;
+            access_log off;
+            # Cho phép các domain khác gọi đến nếu cần (CORS)
+            add_header 'Access-Control-Allow-Origin' '*' always;
+
+        }
+
+        location / {
+            proxy_pass http://127.0.0.1:8001;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;  
+        }
+    }
+
+    sudo nginx -t
+    sudo systemctl reload nginx
+
+    cấp quyền cho file 
+
+    sudo chown -R $USER:www-data /var/www/lumer_media/
+    sudo find /var/www/lumer_media/ -type d -exec chmod 775 {} +
+    sudo find /var/www/lumer_media/ -type f -exec chmod 664 {} +

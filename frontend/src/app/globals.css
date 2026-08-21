@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+.lesson-slide-content {
+  width: 100%;
+  font-size: clamp(0.9rem, 1.6vw, 1.3rem);
+  line-height: 1.75;
+}
+
+.lesson-slide-content h1,
+.lesson-slide-content h2 {
+  margin: 0 0 1.25rem;
+  color: #171a2c;
+  font-size: clamp(1.55rem, 3.3vw, 2.8rem);
+  font-weight: 800;
+  line-height: 1.16;
+  letter-spacing: -0.035em;
+}
+
+.lesson-slide-content h3 {
+  margin: 1rem 0 0.65rem;
+  color: #343950;
+  font-size: clamp(1.1rem, 2vw, 1.55rem);
+  font-weight: 700;
+}
+
+.lesson-slide-content p {
+  margin: 0.65rem 0;
+}
+
+.lesson-slide-content ul,
+.lesson-slide-content ol {
+  margin: 0.8rem 0;
+  padding-left: 1.5rem;
+}
+
+.lesson-slide-content li {
+  margin: 0.45rem 0;
+}
+
+.lesson-slide-content ul li::marker {
+  color: #4f46e5;
+}
+
+.lesson-slide-content img {
+  max-width: 100%;
+  max-height: min(38vh, 330px);
+  margin: 1rem auto;
+  border-radius: 0.9rem;
+  object-fit: contain;
+}
+
+.lesson-slide-content blockquote {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid #4f46e5;
+  border-radius: 0 0.75rem 0.75rem 0;
+  background: #f5f5ff;
+  color: #454a63;
+}
+@keyframes lesson-slide-enter {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.lesson-slide-enter {
+  animation: lesson-slide-enter 220ms ease-out;
+}
