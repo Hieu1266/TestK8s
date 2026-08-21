@@ -47,8 +47,9 @@ jobs:
           file: ./backend/service/${{ matrix.service }}/Dockerfile
           push: true
           tags: ${{ env.DOCKER_USERNAME }}/${{ matrix.service }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # THÊM SCOPE VÀO 2 DÒNG NÀY:
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
   # ==========================================
   # JOB 2: Build & Push Next.js Frontend
