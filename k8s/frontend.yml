@@ -26,12 +26,15 @@ spec:
         ports:
         - containerPort: 3000
         env:
-        - name: NODE_ENV
-          value: "production"
-        - name: PORT
-          value: "3000"
-        - name: NEXT_PUBLIC_USER_BACKEND_URL
-          value: "http://user-service:8000"
+          - name: NODE_ENV
+            value: "production"
+          - name: PORT
+            value: "3000"
+          - name: NEXT_PUBLIC_USER_BACKEND_URL
+            value: "http://user-service:8000"
+          - name: COOKIE_SECURE
+            value: "false"   # đổi thành "true" khi đã có domain thật + HTTPS
+          
         resources:
           requests:
             memory: "256Mi"
