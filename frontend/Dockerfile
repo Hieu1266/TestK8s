@@ -7,7 +7,6 @@ WORKDIR /app
 
 # Copy package management files
 COPY package.json package-lock.json ./
-# Đổi npm ci thành npm install để tránh lỗi hụt package-lock
 RUN npm install
 
 # ==========================================

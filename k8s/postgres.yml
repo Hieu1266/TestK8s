@@ -105,8 +105,66 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - port: 5433
+    - name: k8s-internal
+      port: 5432
       targetPort: 5432
-      nodePort: 30432
+    - name: pgadmin-external
+      port: 5433
+      targetPort: 5432
   selector:
     app: postgres
+---
+# ==========================================
+# SHARED MEDIA STORAGE (PVC & NGINX)
+# ==========================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: media-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-media
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nginx-media
+  template:
+    metadata:
+      labels:
+        app: nginx-media
+    spec:
+      containers:
+      - name: nginx-media
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: media-storage
+          mountPath: /usr/share/nginx/html/static
+      volumes:
+      - name: media-storage
+        persistentVolumeClaim:
+          claimName: media-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-media
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 8081
+      targetPort: 80
+  selector:
+    app: nginx-media

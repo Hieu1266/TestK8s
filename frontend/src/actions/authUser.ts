@@ -44,8 +44,15 @@ function getRedirectUrlByRole(role: string): string {
 
 async function setAuthCookies(data: any) {
   const cookieStore = await cookies()
+  // QUAN TRỌNG: KHÔNG dùng process.env.NODE_ENV để quyết định "secure".
+  // Dockerfile luôn set NODE_ENV=production kể cả khi site chạy HTTP thuần
+  // (vd: truy cập qua IP LAN không có TLS) -> nếu secure=true thì trình
+  // duyệt sẽ tự động DROP cookie (token/user_info/user_role) trên các
+  // origin không phải HTTPS, khiến user không đăng nhập được.
+  // Dùng cờ riêng COOKIE_SECURE, set "true" trong k8s/frontend.yml khi
+  // đã có domain thật + HTTPS phía trước.
   const cookieConfig = {
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.COOKIE_SECURE === 'true',
     sameSite: 'lax' as const,
     maxAge: 60 * 60 * 24,
     path: '/',

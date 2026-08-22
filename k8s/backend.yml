@@ -77,7 +77,7 @@ spec:
 
 ---
 # ==========================================
-# 2. COURSE SERVICE
+# 2. COURSE SERVICE (Shared Volume Mounted)
 # ==========================================
 apiVersion: apps/v1
 kind: Deployment
@@ -87,6 +87,8 @@ metadata:
     app: course-service
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: course-service
@@ -107,6 +109,13 @@ spec:
         - configMapRef:
             name: course-service-config
             optional: true
+        volumeMounts:
+        - name: media-storage
+          mountPath: /app/static
+      volumes:
+      - name: media-storage
+        persistentVolumeClaim:
+          claimName: media-pvc
 ---
 apiVersion: v1
 kind: Service
